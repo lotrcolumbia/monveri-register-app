@@ -1,0 +1,14 @@
+<Window x:Class="MonveriRegister.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:helpers="clr-namespace:MonveriRegister.Helpers"
+        Title="Monveri Register" Height="768" Width="1024"
+        Icon="pack://application:,,,/app.ico"
+        WindowState="Maximized" WindowStyle="SingleBorderWindow"
+        Background="{StaticResource BackgroundBrush}"
+        d:DataContext="{d:DesignInstance helpers:NavigationService}"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d">
+    <ContentControl Content="{Binding CurrentViewModel}"/>
+</Window>
