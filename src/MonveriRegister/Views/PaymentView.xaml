@@ -46,6 +46,10 @@
                             <TextBlock Text="Tax" FontSize="14"/>
                             <TextBlock Text="{Binding Tax, StringFormat=C2}" DockPanel.Dock="Right" FontSize="14"/>
                         </DockPanel>
+                        <DockPanel Margin="0,2">
+                            <TextBlock Text="Service Fee" FontSize="14"/>
+                            <TextBlock Text="{Binding ServiceFee, StringFormat=C2}" DockPanel.Dock="Right" FontSize="14"/>
+                        </DockPanel>
                         <Separator Margin="0,8"/>
                         <DockPanel>
                             <TextBlock Text="TOTAL DUE" FontSize="28" FontWeight="Bold"/>

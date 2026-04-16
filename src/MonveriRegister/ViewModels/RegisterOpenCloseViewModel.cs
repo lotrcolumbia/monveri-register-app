@@ -122,38 +122,45 @@ public partial class RegisterOpenCloseViewModel : ObservableObject
         IsProcessing = true;
         StatusMessage = "Opening register...";
 
-        var breakdown = GetBreakdown();
-        var session = new RegisterSession
+        try
         {
-            EmployeeId = _employee.Id,
-            EmployeeName = _employee.Name,
-            OpenedAt = DateTime.UtcNow.ToString("o"),
-            OpeningCash = breakdown.CalculateTotal(),
-            OpeningBreakdown = breakdown.ToJson(),
-            Status = "open",
-            IsTraining = IsTraining,
-            TaxLocationId = SelectedTaxLocation?.Id,
-        };
+            var breakdown = GetBreakdown();
+            var session = new RegisterSession
+            {
+                EmployeeId = _employee.Id,
+                EmployeeName = _employee.Name,
+                OpenedAt = DateTime.UtcNow.ToString("o"),
+                OpeningCash = breakdown.CalculateTotal(),
+                OpeningBreakdown = breakdown.ToJson(),
+                Status = "open",
+                IsTraining = IsTraining,
+                TaxLocationId = SelectedTaxLocation?.Id,
+            };
 
-        // Save locally first
-        session.Id = _db.InsertSession(session);
+            session.Id = _db.InsertSession(session);
 
-        // Try to sync to server
-        var result = await _api.OpenSessionAsync(session);
-        if (result.Success)
-        {
-            session.ServerId = result.Data;
-            session.IsSynced = true;
-            _db.UpdateSession(session);
+            var result = await _api.OpenSessionAsync(session);
+            if (result.Success)
+            {
+                session.ServerId = result.Data;
+                session.IsSynced = true;
+                _db.UpdateSession(session);
+            }
+
+            StatusMessage = "Register opened!";
+
+            _nav.NavigateTo(new RegisterViewModel(
+                _api, _db, _sync, _nav, _taxService, _transactionService,
+                _employee, session));
         }
-
-        StatusMessage = "Register opened!";
-        IsProcessing = false;
-
-        // Navigate to main register
-        _nav.NavigateTo(new RegisterViewModel(
-            _api, _db, _sync, _nav, _taxService, _transactionService,
-            _employee, session));
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error opening register: {ex.Message}";
+        }
+        finally
+        {
+            IsProcessing = false;
+        }
     }
 
     [RelayCommand]
@@ -164,33 +171,47 @@ public partial class RegisterOpenCloseViewModel : ObservableObject
         IsProcessing = true;
         StatusMessage = "Closing register...";
 
-        var breakdown = GetBreakdown();
-        _session.ClosedAt = DateTime.UtcNow.ToString("o");
-        _session.ClosingCash = breakdown.CalculateTotal();
-        _session.ClosingBreakdown = breakdown.ToJson();
-        _session.Status = "closed";
-        _session.Notes = Notes;
-        _db.UpdateSession(_session);
-
-        // Try to sync
-        if (_session.ServerId.HasValue)
+        try
         {
-            await _api.CloseSessionAsync(_session.ServerId.Value, _session.ClosingCash.Value,
-                _session.ClosingBreakdown, _session.Notes);
+            var breakdown = GetBreakdown();
+            _session.ClosedAt = DateTime.UtcNow.ToString("o");
+            _session.ClosingCash = breakdown.CalculateTotal();
+            _session.ClosingBreakdown = breakdown.ToJson();
+            _session.Status = "closed";
+            _session.Notes = Notes;
+            _session.IsSynced = false;
+            _db.UpdateSession(_session);
+
+            if (_session.ServerId.HasValue)
+            {
+                var result = await _api.CloseSessionAsync(_session.ServerId.Value, _session.ClosingCash.Value,
+                    _session.ClosingBreakdown, _session.Notes);
+                if (result.Success)
+                {
+                    _session.IsSynced = true;
+                    _db.UpdateSession(_session);
+                }
+            }
+
+            StatusMessage = "Register closed!";
+
+            _nav.NavigateTo(new LoginViewModel(_api, _db, _sync, _nav, _taxService, _transactionService));
         }
-
-        StatusMessage = "Register closed!";
-        IsProcessing = false;
-
-        // Back to login
-        _nav.NavigateTo(new LoginViewModel(_api, _db, _sync, _nav));
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error closing register: {ex.Message}";
+        }
+        finally
+        {
+            IsProcessing = false;
+        }
     }
 
     [RelayCommand]
     private void Cancel()
     {
         if (IsOpening)
-            _nav.NavigateTo(new LoginViewModel(_api, _db, _sync, _nav));
+            _nav.NavigateTo(new LoginViewModel(_api, _db, _sync, _nav, _taxService, _transactionService));
         else if (_session != null)
             _nav.NavigateTo(new RegisterViewModel(
                 _api, _db, _sync, _nav, _taxService, _transactionService,

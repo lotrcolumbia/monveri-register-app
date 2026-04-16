@@ -69,10 +69,8 @@ public class SyncService : ISyncService
             var taxResult = await _api.GetTaxLocationsAsync();
             if (taxResult.Success && taxResult.Data != null)
             {
-                errors.Add($"Tax: got {taxResult.Data.Count} locations");
                 _db.SaveTaxLocations(taxResult.Data);
-                var verify = _db.GetAllTaxLocations();
-                errors.Add($"Tax: saved {verify.Count} to DB");
+                SetStatus($"Tax: synced {taxResult.Data.Count} locations");
             }
             else
                 errors.Add($"Tax fail: success={taxResult.Success} data={taxResult.Data != null} err={taxResult.Error}");

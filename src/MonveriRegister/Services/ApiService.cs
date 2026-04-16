@@ -194,16 +194,17 @@ public class ApiService : IApiService
     {
         var body = await response.Content.ReadAsStringAsync();
 
-        // Debug: log raw responses to help diagnose sync issues
+#if DEBUG
         try
         {
             var logDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "MonveriRegister", "logs");
             Directory.CreateDirectory(logDir);
             var logFile = Path.Combine(logDir, "api_debug.log");
-            var logLine = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {typeof(T).Name} ({(int)response.StatusCode}): {(body.Length > 500 ? body[..500] + "..." : body)}\n";
-            File.AppendAllText(logFile, logLine);
+            var logLine = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {typeof(T).Name} ({(int)response.StatusCode}) len={body.Length}\n";
+            await File.AppendAllTextAsync(logFile, logLine);
         }
         catch { /* ignore logging errors */ }
+#endif
 
         if (!response.IsSuccessStatusCode)
             return ApiResult<T>.Fail($"HTTP {(int)response.StatusCode}: {body}");

@@ -12,6 +12,8 @@ public partial class LoginViewModel : ObservableObject
     private readonly IDatabaseService _db;
     private readonly ISyncService _sync;
     private readonly NavigationService _nav;
+    private readonly ITaxService _taxService;
+    private readonly ITransactionService _transactionService;
 
     [ObservableProperty] private string _serverUrl = string.Empty;
     [ObservableProperty] private string _storeKey = string.Empty;
@@ -24,12 +26,15 @@ public partial class LoginViewModel : ObservableObject
     [ObservableProperty] private bool _showPinEntry;
     private Task? _syncTask;
 
-    public LoginViewModel(IApiService api, IDatabaseService db, ISyncService sync, NavigationService nav)
+    public LoginViewModel(IApiService api, IDatabaseService db, ISyncService sync, NavigationService nav,
+        ITaxService taxService, ITransactionService transactionService)
     {
         _api = api;
         _db = db;
         _sync = sync;
         _nav = nav;
+        _taxService = taxService;
+        _transactionService = transactionService;
 
         // Load saved connection
         var savedUrl = _db.GetConfig("base_url");
@@ -180,18 +185,14 @@ public partial class LoginViewModel : ObservableObject
         var session = _db.GetOpenSession(employee.Id);
         if (session != null)
         {
-            // Already have an open session, go to main register
             _nav.NavigateTo(new RegisterViewModel(
-                _api, _db, _sync, _nav, new TaxService(),
-                new TransactionService(new TaxService(), _db, _api, new DiscountService(_db)),
+                _api, _db, _sync, _nav, _taxService, _transactionService,
                 employee, session));
         }
         else
         {
-            // Need to open register first
             _nav.NavigateTo(new RegisterOpenCloseViewModel(
-                _api, _db, _nav, new TaxService(),
-                new TransactionService(new TaxService(), _db, _api, new DiscountService(_db)),
+                _api, _db, _nav, _taxService, _transactionService,
                 _sync, employee, isOpening: true));
         }
     }

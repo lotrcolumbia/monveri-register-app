@@ -90,7 +90,15 @@ public class DenominationBreakdown
 
     public static DenominationBreakdown FromJson(string json)
     {
-        var dict = JsonSerializer.Deserialize<Dictionary<string, int>>(json) ?? new();
+        Dictionary<string, int> dict;
+        try
+        {
+            dict = JsonSerializer.Deserialize<Dictionary<string, int>>(json) ?? new();
+        }
+        catch (JsonException)
+        {
+            return new DenominationBreakdown();
+        }
         return new DenominationBreakdown
         {
             Bills100 = dict.GetValueOrDefault("bills_100"),

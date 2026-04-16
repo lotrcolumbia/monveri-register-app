@@ -34,8 +34,48 @@ public partial class CartItem : ObservableObject
     public string Name => Product.DisplayName;
     public bool IsTaxable => Product.IsTaxableBool;
 
-    partial void OnQuantityChanged(int value) => OnPropertyChanged(nameof(LineTotal));
-    partial void OnOverridePriceChanged(decimal? value) => OnPropertyChanged(nameof(LineTotal));
-    partial void OnDiscountAmountChanged(decimal value) => OnPropertyChanged(nameof(LineTotal));
-    partial void OnDiscountTypeChanged(string? value) => OnPropertyChanged(nameof(LineTotal));
+    partial void OnProductChanged(Product value)
+    {
+        OnPropertyChanged(nameof(UnitPrice));
+        OnPropertyChanged(nameof(LineSubtotal));
+        OnPropertyChanged(nameof(LineDiscount));
+        OnPropertyChanged(nameof(LineTotal));
+        OnPropertyChanged(nameof(Sku));
+        OnPropertyChanged(nameof(Name));
+        OnPropertyChanged(nameof(IsTaxable));
+    }
+
+    partial void OnQuantityChanged(int value)
+    {
+        OnPropertyChanged(nameof(LineSubtotal));
+        OnPropertyChanged(nameof(LineDiscount));
+        OnPropertyChanged(nameof(LineTotal));
+    }
+
+    partial void OnQtyMultiplierChanged(int value)
+    {
+        OnPropertyChanged(nameof(LineSubtotal));
+        OnPropertyChanged(nameof(LineDiscount));
+        OnPropertyChanged(nameof(LineTotal));
+    }
+
+    partial void OnOverridePriceChanged(decimal? value)
+    {
+        OnPropertyChanged(nameof(UnitPrice));
+        OnPropertyChanged(nameof(LineSubtotal));
+        OnPropertyChanged(nameof(LineDiscount));
+        OnPropertyChanged(nameof(LineTotal));
+    }
+
+    partial void OnDiscountAmountChanged(decimal value)
+    {
+        OnPropertyChanged(nameof(LineDiscount));
+        OnPropertyChanged(nameof(LineTotal));
+    }
+
+    partial void OnDiscountTypeChanged(string? value)
+    {
+        OnPropertyChanged(nameof(LineDiscount));
+        OnPropertyChanged(nameof(LineTotal));
+    }
 }

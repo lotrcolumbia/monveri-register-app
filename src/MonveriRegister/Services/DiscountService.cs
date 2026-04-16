@@ -68,7 +68,8 @@ public class DiscountService : IDiscountService
                             if (itemCatId != null && IsCategoryMatch(itemCatId, discount.CategoryId.Value.ToString(), categories))
                             {
                                 decimal price = item.OverridePrice ?? item.Price;
-                                savings += (price * item.Qty) * (discount.DiscountValue / 100m);
+                                int effectiveQty = item.Qty * item.QtyMultiplier;
+                                savings += (price * effectiveQty) * (discount.DiscountValue / 100m);
                             }
                         }
                         info.Description = $"{discount.DiscountValue}% off category";
@@ -101,17 +102,29 @@ public class DiscountService : IDiscountService
                 savings = Math.Round(savings, 2);
                 info.Savings = savings;
 
-                bool canApply = false;
                 bool isBuyGetType = discount.Type is "buy_x_get_free" or "buy_x_get_other_free";
 
-                if (allowStacking)
-                    canApply = true;
-                else if (isBuyGetType && discount.Stackable != 0)
-                    canApply = true;
-                else if (!appliedTypes.Contains(discount.Type))
-                    canApply = true;
-
-                if (canApply)
+                if (allowStacking || (isBuyGetType && discount.Stackable != 0))
+                {
+                    result.Discounts.Add(info);
+                    result.TotalSavings += savings;
+                    appliedTypes.Add(discount.Type);
+                }
+                else if (appliedTypes.Contains(discount.Type))
+                {
+                    var existing = result.Discounts.FirstOrDefault(d => d.Type == discount.Type);
+                    if (existing != null && savings > existing.Savings)
+                    {
+                        result.TotalSavings -= existing.Savings;
+                        existing.Id = info.Id;
+                        existing.Name = info.Name;
+                        existing.Description = info.Description;
+                        existing.Savings = savings;
+                        existing.FreeQty = info.FreeQty;
+                        result.TotalSavings += savings;
+                    }
+                }
+                else
                 {
                     result.Discounts.Add(info);
                     result.TotalSavings += savings;
@@ -178,7 +191,8 @@ public class DiscountService : IDiscountService
                 if (matches)
                 {
                     decimal price = item.OverridePrice ?? item.Price;
-                    for (int i = 0; i < item.Qty; i++)
+                    int effectiveQty = item.Qty * item.QtyMultiplier;
+                    for (int i = 0; i < effectiveQty; i++)
                         matchingPrices.Add(price);
                 }
             }
@@ -281,7 +295,8 @@ public class DiscountService : IDiscountService
             if (matches)
             {
                 decimal price = item.OverridePrice ?? item.Price;
-                for (int i = 0; i < item.Qty; i++)
+                int effectiveQty = item.Qty * item.QtyMultiplier;
+                for (int i = 0; i < effectiveQty; i++)
                     matchingPrices.Add(price);
             }
         }

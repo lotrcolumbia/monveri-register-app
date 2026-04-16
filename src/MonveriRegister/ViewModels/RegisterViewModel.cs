@@ -229,8 +229,32 @@ public partial class RegisterViewModel : ObservableObject
             if (linked == null) linked = _db.GetVariantBySkuOrUpc(barcodeRel.Value.ParentSku);
             if (linked != null)
             {
-                linked.QtyMultiplier = Math.Max(1, barcodeRel.Value.QtyCount);
-                return linked;
+                return new Product
+                {
+                    ProductId = linked.ProductId,
+                    Sku = linked.Sku,
+                    Name = linked.Name,
+                    Price = linked.Price,
+                    Quantity = linked.Quantity,
+                    Upc = linked.Upc,
+                    CategoryId = linked.CategoryId,
+                    CategoryName = linked.CategoryName,
+                    UnitOfSale = linked.UnitOfSale,
+                    PricePerUnit = linked.PricePerUnit,
+                    Subtract = linked.Subtract,
+                    IsTaxable = linked.IsTaxable,
+                    IsVariant = linked.IsVariant,
+                    VariantId = linked.VariantId,
+                    VariantName = linked.VariantName,
+                    VariantValue = linked.VariantValue,
+                    ParentName = linked.ParentName,
+                    IsBundle = linked.IsBundle,
+                    BundleId = linked.BundleId,
+                    IsService = linked.IsService,
+                    ServiceId = linked.ServiceId,
+                    UpdatedAt = linked.UpdatedAt,
+                    QtyMultiplier = Math.Max(1, barcodeRel.Value.QtyCount),
+                };
             }
         }
 
@@ -526,7 +550,7 @@ public partial class RegisterViewModel : ObservableObject
     private void Logout()
     {
         _sync.Stop();
-        _nav.NavigateTo(new LoginViewModel(_api, _db, _sync, _nav));
+        _nav.NavigateTo(new LoginViewModel(_api, _db, _sync, _nav, _taxService, _transactionService));
     }
 
     #endregion

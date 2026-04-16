@@ -23,15 +23,11 @@ public class TaxService : ITaxService
         result.LocationName = location.LocationName;
         result.Rate = location.TaxRate;
 
-        // Convert percentage to decimal and calculate total tax
-        decimal totalRate = location.TaxRate / 100m;
-        result.Total = Math.Round(taxableAmount * totalRate, 2);
-
-        // Calculate breakdown by tax type
+        // Calculate breakdown by tax type, rounding each with AwayFromZero (PHP HALF_UP)
         foreach (var rate in location.Rates)
         {
             decimal typeRate = rate.Rate / 100m;
-            decimal typeAmount = Math.Round(taxableAmount * typeRate, 2);
+            decimal typeAmount = Math.Round(taxableAmount * typeRate, 2, MidpointRounding.AwayFromZero);
 
             result.Breakdown.Add(new TaxBreakdownItem
             {
@@ -39,6 +35,8 @@ public class TaxService : ITaxService
                 Rate = rate.Rate,
                 Amount = typeAmount,
             });
+
+            result.Total += typeAmount;
         }
 
         return result;

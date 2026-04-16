@@ -169,18 +169,8 @@
                                     </ControlTemplate>
                                 </Button.Template>
                             </Button>
-                            <TextBlock VerticalAlignment="Center" FontSize="12" Foreground="#888">
-                                <TextBlock.Style>
-                                    <Style TargetType="TextBlock">
-                                        <Setter Property="Text" Value="No customer"/>
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding AttachedCustomer}" Value="{x:Null}">
-                                                <Setter Property="Text" Value="No customer"/>
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </TextBlock.Style>
-                            </TextBlock>
+                            <TextBlock VerticalAlignment="Center" FontSize="12" Foreground="#888"
+                                       Text="{Binding AttachedCustomer.DisplayName, TargetNullValue='No customer', FallbackValue='No customer'}"/>
                         </DockPanel>
                     </Border>
 
