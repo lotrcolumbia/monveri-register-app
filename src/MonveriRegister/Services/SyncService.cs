@@ -20,7 +20,7 @@ public class SyncService : ISyncService
     private readonly IApiService _api;
     private readonly IDatabaseService _db;
     private Timer? _timer;
-    private bool _isSyncing;
+    private int _isSyncing;
 
     public bool IsOnline { get; private set; }
     public string SyncStatus { get; private set; } = "Idle";
@@ -36,7 +36,11 @@ public class SyncService : ISyncService
     public async Task StartAsync()
     {
         await CheckConnectivity();
-        _timer = new Timer(async _ => await SyncNowAsync(), null, TimeSpan.FromMinutes(2), TimeSpan.FromMinutes(5));
+        _timer = new Timer(_ => _ = Task.Run(async () =>
+        {
+            try { await SyncNowAsync(); }
+            catch { /* logged via SetStatus */ }
+        }), null, TimeSpan.FromMinutes(2), TimeSpan.FromMinutes(5));
     }
 
     public void Stop()
@@ -166,8 +170,7 @@ public class SyncService : ISyncService
 
     public async Task SyncNowAsync()
     {
-        if (_isSyncing) return;
-        _isSyncing = true;
+        if (Interlocked.CompareExchange(ref _isSyncing, 1, 0) != 0) return;
 
         try
         {
@@ -193,12 +196,17 @@ public class SyncService : ISyncService
                 }
             }
 
-            // Pull delta updates
+            // Pull delta updates (products + variants)
             var lastSync = _db.GetConfig("last_product_sync");
             var prodResult = await _api.SyncProductsAsync(lastSync);
             if (prodResult.Success && prodResult.Data != null)
             {
                 _db.UpsertProducts(prodResult.Data.Products);
+                foreach (var v in prodResult.Data.Variants)
+                {
+                    v.IsVariant = 1;
+                    _db.UpsertProduct(v);
+                }
                 _db.SetConfig("last_product_sync", DateTime.UtcNow.ToString("o"));
             }
 
@@ -210,7 +218,7 @@ public class SyncService : ISyncService
         }
         finally
         {
-            _isSyncing = false;
+            Interlocked.Exchange(ref _isSyncing, 0);
         }
     }
 

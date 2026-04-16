@@ -26,6 +26,7 @@ public class ApiService : IApiService
     {
         _baseUrl = baseUrl.TrimEnd('/');
         _apiKey = apiKey;
+        _client?.Dispose();
         _client = new HttpClient
         {
             BaseAddress = new Uri(_baseUrl + "/api/register/"),
@@ -51,8 +52,8 @@ public class ApiService : IApiService
                 {
                     ApiKey = apiKey,
                     BaseUrl = baseUrl,
-                    StoreName = json.GetProperty("store_name").GetString() ?? "",
-                    StoreCode = json.GetProperty("store_code").GetString() ?? "",
+                    StoreName = json.TryGetProperty("store_name", out var sn) ? sn.GetString() ?? "" : "",
+                    StoreCode = json.TryGetProperty("store_code", out var sc) ? sc.GetString() ?? "" : "",
                 };
                 return ApiResult<StoreConfig>.Ok(config);
             }
@@ -209,7 +210,16 @@ public class ApiService : IApiService
         if (!response.IsSuccessStatusCode)
             return ApiResult<T>.Fail($"HTTP {(int)response.StatusCode}: {body}");
 
-        var json = JsonSerializer.Deserialize<JsonElement>(body);
+        JsonElement json;
+        try
+        {
+            json = JsonSerializer.Deserialize<JsonElement>(body);
+        }
+        catch (JsonException ex)
+        {
+            return ApiResult<T>.Fail($"Invalid response format: {ex.Message}");
+        }
+
         if (json.TryGetProperty("success", out var s) && s.GetBoolean())
         {
             if (json.TryGetProperty("data", out var data))
@@ -224,7 +234,7 @@ public class ApiService : IApiService
                     return ApiResult<T>.Fail($"Deserialize error: {ex.Message}");
                 }
             }
-            return ApiResult<T>.Ok(default!);
+            return ApiResult<T>.Fail("Missing data in successful response");
         }
         var msg = json.TryGetProperty("message", out var m) ? m.GetString() : "Request failed";
         return ApiResult<T>.Fail(msg ?? "Request failed");

@@ -281,7 +281,7 @@ public partial class RegisterViewModel : ObservableObject
         {
             existing.Quantity += 1;
             _transactionService.UpdateItemQuantity(ActiveTransaction,
-                ActiveTransaction.Items.First(i => i.Sku == product.Sku), existing.Quantity);
+                ActiveTransaction.Items.First(i => i.Sku == product.Sku && i.OverridePrice == null), existing.Quantity);
         }
         else
         {
@@ -471,7 +471,7 @@ public partial class RegisterViewModel : ObservableObject
         CartItems.Clear();
         foreach (var item in suspended.Items)
         {
-            var product = _db.GetProductBySku(item.Sku);
+            var product = LookupProduct(item.Sku);
             if (product != null)
             {
                 CartItems.Add(new CartItem

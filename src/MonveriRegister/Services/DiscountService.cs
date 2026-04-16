@@ -153,7 +153,7 @@ public class DiscountService : IDiscountService
             {
                 if (item.Sku == discount.Sku)
                 {
-                    int totalQty = item.Qty;
+                    int totalQty = item.Qty * item.QtyMultiplier;
                     int sets = totalQty / (buyQty + freeQty);
                     int remainder = totalQty % (buyQty + freeQty);
                     int freeItems = sets * freeQty;
@@ -243,11 +243,11 @@ public class DiscountService : IDiscountService
         foreach (var item in items)
         {
             if (item.Sku == buySku)
-                buyItemQty = item.Qty;
+                buyItemQty = item.Qty * item.QtyMultiplier;
             if (item.Sku == freeSku)
             {
                 freeItemPrice = item.OverridePrice ?? item.Price;
-                freeItemQty = item.Qty;
+                freeItemQty = item.Qty * item.QtyMultiplier;
             }
         }
 
