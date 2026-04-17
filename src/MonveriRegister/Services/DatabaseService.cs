@@ -89,7 +89,27 @@ public class DatabaseService : IDatabaseService, IDisposable
         var conn = GetConnection();
         using var transaction = conn.BeginTransaction();
         foreach (var p in products)
-            UpsertProduct(p);
+        {
+            using var cmd = conn.CreateCommand();
+            cmd.Transaction = transaction;
+            cmd.CommandText = @"INSERT OR REPLACE INTO products
+                (product_id, sku, name, price, quantity, upc, category_id, category_name, unit_of_sale, price_per_unit, subtract, is_taxable, updated_at)
+                VALUES (@id, @sku, @name, @price, @qty, @upc, @catid, @catname, @uos, @ppu, @sub, @tax, @updated)";
+            cmd.Parameters.AddWithValue("@id", p.ProductId);
+            cmd.Parameters.AddWithValue("@sku", p.Sku);
+            cmd.Parameters.AddWithValue("@name", p.Name);
+            cmd.Parameters.AddWithValue("@price", p.Price);
+            cmd.Parameters.AddWithValue("@qty", p.Quantity);
+            cmd.Parameters.AddWithValue("@upc", (object?)p.Upc ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@catid", (object?)p.CategoryId ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@catname", (object?)p.CategoryName ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@uos", p.UnitOfSale);
+            cmd.Parameters.AddWithValue("@ppu", p.PricePerUnit.HasValue ? p.PricePerUnit.Value : DBNull.Value);
+            cmd.Parameters.AddWithValue("@sub", p.Subtract);
+            cmd.Parameters.AddWithValue("@tax", p.IsTaxable);
+            cmd.Parameters.AddWithValue("@updated", p.UpdatedAt);
+            cmd.ExecuteNonQuery();
+        }
         transaction.Commit();
     }
 
@@ -249,7 +269,25 @@ public class DatabaseService : IDatabaseService, IDisposable
     {
         var conn = GetConnection();
         using var transaction = conn.BeginTransaction();
-        foreach (var c in customers) UpsertCustomer(c);
+        foreach (var c in customers)
+        {
+            using var cmd = conn.CreateCommand();
+            cmd.Transaction = transaction;
+            cmd.CommandText = @"INSERT OR REPLACE INTO customers
+                (customer_id, fname, lname, company, phone1, email, loyalty_card_number, current_points, tier_name, updated_at)
+                VALUES (@id, @fn, @ln, @co, @ph, @em, @lc, @cp, @tn, @up)";
+            cmd.Parameters.AddWithValue("@id", c.CustomerId);
+            cmd.Parameters.AddWithValue("@fn", (object?)c.FirstName ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@ln", (object?)c.LastName ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@co", (object?)c.Company ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@ph", (object?)c.Phone ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@em", (object?)c.Email ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@lc", (object?)c.LoyaltyCardNumber ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@cp", c.CurrentPoints);
+            cmd.Parameters.AddWithValue("@tn", (object?)c.TierName ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@up", c.UpdatedAt);
+            cmd.ExecuteNonQuery();
+        }
         transaction.Commit();
     }
 
@@ -302,12 +340,13 @@ public class DatabaseService : IDatabaseService, IDisposable
         var conn = GetConnection();
         using var transaction = conn.BeginTransaction();
 
-        using (var del = conn.CreateCommand()) { del.CommandText = "DELETE FROM tax_location_rates"; del.ExecuteNonQuery(); }
-        using (var del = conn.CreateCommand()) { del.CommandText = "DELETE FROM tax_locations"; del.ExecuteNonQuery(); }
+        using (var del = conn.CreateCommand()) { del.Transaction = transaction; del.CommandText = "DELETE FROM tax_location_rates"; del.ExecuteNonQuery(); }
+        using (var del = conn.CreateCommand()) { del.Transaction = transaction; del.CommandText = "DELETE FROM tax_locations"; del.ExecuteNonQuery(); }
 
         foreach (var loc in locations)
         {
             using var cmd = conn.CreateCommand();
+            cmd.Transaction = transaction;
             cmd.CommandText = @"INSERT INTO tax_locations (id, location_name, tax_rate, is_default) VALUES (@id, @name, @rate, @def)";
             cmd.Parameters.AddWithValue("@id", loc.Id);
             cmd.Parameters.AddWithValue("@name", loc.LocationName);
@@ -318,6 +357,7 @@ public class DatabaseService : IDatabaseService, IDisposable
             foreach (var rate in loc.Rates)
             {
                 using var rcmd = conn.CreateCommand();
+                rcmd.Transaction = transaction;
                 rcmd.CommandText = @"INSERT INTO tax_location_rates (id, location_id, tax_type_name, rate) VALUES (@id, @lid, @name, @rate)";
                 rcmd.Parameters.AddWithValue("@id", rate.Id);
                 rcmd.Parameters.AddWithValue("@lid", loc.Id);
@@ -406,10 +446,11 @@ public class DatabaseService : IDatabaseService, IDisposable
     {
         var conn = GetConnection();
         using var transaction = conn.BeginTransaction();
-        using (var del = conn.CreateCommand()) { del.CommandText = "DELETE FROM employees"; del.ExecuteNonQuery(); }
+        using (var del = conn.CreateCommand()) { del.Transaction = transaction; del.CommandText = "DELETE FROM employees"; del.ExecuteNonQuery(); }
         foreach (var e in employees)
         {
             using var cmd = conn.CreateCommand();
+            cmd.Transaction = transaction;
             cmd.CommandText = @"INSERT INTO employees (id, name, username, pin_hash, level, status) VALUES (@id, @name, @user, @pin, @lvl, @status)";
             cmd.Parameters.AddWithValue("@id", e.Id);
             cmd.Parameters.AddWithValue("@name", e.Name);
@@ -792,10 +833,11 @@ public class DatabaseService : IDatabaseService, IDisposable
     {
         var conn = GetConnection();
         using var transaction = conn.BeginTransaction();
-        using (var del = conn.CreateCommand()) { del.CommandText = "DELETE FROM discounts"; del.ExecuteNonQuery(); }
+        using (var del = conn.CreateCommand()) { del.Transaction = transaction; del.CommandText = "DELETE FROM discounts"; del.ExecuteNonQuery(); }
         foreach (var d in discounts)
         {
             using var cmd = conn.CreateCommand();
+            cmd.Transaction = transaction;
             cmd.CommandText = @"INSERT INTO discounts (id, name, type, discount_value, min_spend, buy_quantity, get_quantity, category_id, sku, free_sku, stackable, bxgy_target_mode, category_ids)
                 VALUES (@id, @name, @type, @dv, @ms, @bq, @gq, @cid, @sku, @fsku, @stack, @mode, @cids)";
             cmd.Parameters.AddWithValue("@id", d.Id);
@@ -852,10 +894,11 @@ public class DatabaseService : IDatabaseService, IDisposable
     {
         var conn = GetConnection();
         using var transaction = conn.BeginTransaction();
-        using (var del = conn.CreateCommand()) { del.CommandText = "DELETE FROM categories"; del.ExecuteNonQuery(); }
+        using (var del = conn.CreateCommand()) { del.Transaction = transaction; del.CommandText = "DELETE FROM categories"; del.ExecuteNonQuery(); }
         foreach (var c in categories)
         {
             using var cmd = conn.CreateCommand();
+            cmd.Transaction = transaction;
             cmd.CommandText = "INSERT INTO categories (category_id, name, parent_id) VALUES (@id, @name, @pid)";
             cmd.Parameters.AddWithValue("@id", c.CategoryId);
             cmd.Parameters.AddWithValue("@name", c.Name);
