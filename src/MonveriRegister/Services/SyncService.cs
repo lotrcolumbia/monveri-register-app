@@ -35,6 +35,7 @@ public class SyncService : ISyncService
 
     public async Task StartAsync()
     {
+        if (_timer != null) return;
         await CheckConnectivity();
         _timer = new Timer(_ => _ = Task.Run(async () =>
         {
@@ -76,8 +77,8 @@ public class SyncService : ISyncService
                 _db.SaveTaxLocations(taxResult.Data);
                 SetStatus($"Tax: synced {taxResult.Data.Count} locations");
             }
-            else
-                errors.Add($"Tax fail: success={taxResult.Success} data={taxResult.Data != null} err={taxResult.Error}");
+            else if (!taxResult.Success)
+                errors.Add($"Tax: {taxResult.Error}");
         }
         catch (Exception ex) { errors.Add($"Tax: {ex.Message}"); }
 
@@ -88,6 +89,8 @@ public class SyncService : ISyncService
             var discResult = await _api.GetDiscountsAsync();
             if (discResult.Success && discResult.Data != null)
                 _db.SaveDiscounts(discResult.Data);
+            else if (!discResult.Success)
+                errors.Add($"Discounts: {discResult.Error}");
         }
         catch (Exception ex) { errors.Add($"Discounts: {ex.Message}"); }
 
@@ -98,6 +101,8 @@ public class SyncService : ISyncService
             var catResult = await _api.GetCategoriesAsync();
             if (catResult.Success && catResult.Data != null)
                 _db.SaveCategories(catResult.Data);
+            else if (!catResult.Success)
+                errors.Add($"Categories: {catResult.Error}");
         }
         catch (Exception ex) { errors.Add($"Categories: {ex.Message}"); }
 
@@ -108,6 +113,8 @@ public class SyncService : ISyncService
             var qbResult = await _api.GetQuickButtonsAsync();
             if (qbResult.Success && qbResult.Data != null)
                 _db.SetConfig("quick_buttons", System.Text.Json.JsonSerializer.Serialize(qbResult.Data));
+            else if (!qbResult.Success)
+                errors.Add($"QuickButtons: {qbResult.Error}");
         }
         catch (Exception ex) { errors.Add($"QuickButtons: {ex.Message}"); }
 
@@ -125,6 +132,8 @@ public class SyncService : ISyncService
                 _db.SetConfig("service_fee_percent", cfg.ServiceFeePercent.ToString());
                 _db.SetConfig("service_fee_taxable", cfg.ServiceFeeTaxable ? "1" : "0");
             }
+            else if (!settingsResult.Success)
+                errors.Add($"Settings: {settingsResult.Error}");
         }
         catch (Exception ex) { errors.Add($"Settings: {ex.Message}"); }
 
@@ -142,8 +151,11 @@ public class SyncService : ISyncService
                     v.IsVariant = 1;
                     _db.UpsertProduct(v);
                 }
+                _db.SaveBarcodeRelationships(prodResult.Data.BarcodeRelationships);
                 _db.SetConfig("last_product_sync", DateTime.UtcNow.ToString("o"));
             }
+            else if (!prodResult.Success)
+                errors.Add($"Products: {prodResult.Error}");
         }
         catch (Exception ex) { errors.Add($"Products: {ex.Message}"); }
 
@@ -158,10 +170,12 @@ public class SyncService : ISyncService
                 _db.UpsertCustomers(custResult.Data);
                 _db.SetConfig("last_customer_sync", DateTime.UtcNow.ToString("o"));
             }
+            else if (!custResult.Success)
+                errors.Add($"Customers: {custResult.Error}");
         }
         catch (Exception ex) { errors.Add($"Customers: {ex.Message}"); }
 
-        SetOnline(true);
+        SetOnline(errors.Count == 0);
         if (errors.Count > 0)
             SetStatus($"Sync issues: {string.Join("; ", errors)}");
         else
@@ -194,9 +208,15 @@ public class SyncService : ISyncService
                             _db.MarkSyncFailed(r.LocalId, r.Error ?? "Unknown error");
                     }
                 }
+                else
+                {
+                    var errorMsg = result.Error ?? "Push failed";
+                    foreach (var p in pending)
+                        _db.MarkSyncFailed(p.Id, errorMsg);
+                }
             }
 
-            // Pull delta updates (products + variants)
+            // Pull delta updates (products + variants + barcode relationships)
             var lastSync = _db.GetConfig("last_product_sync");
             var prodResult = await _api.SyncProductsAsync(lastSync);
             if (prodResult.Success && prodResult.Data != null)
@@ -207,6 +227,7 @@ public class SyncService : ISyncService
                     v.IsVariant = 1;
                     _db.UpsertProduct(v);
                 }
+                _db.SaveBarcodeRelationships(prodResult.Data.BarcodeRelationships);
                 _db.SetConfig("last_product_sync", DateTime.UtcNow.ToString("o"));
             }
 

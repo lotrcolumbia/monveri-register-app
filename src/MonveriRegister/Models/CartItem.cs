@@ -11,6 +11,8 @@ public partial class CartItem : ObservableObject
     [ObservableProperty] private string? _discountType; // "percentage" or "fixed"
     [ObservableProperty] private int _qtyMultiplier = 1;
 
+    public TransactionItem? TransactionItem { get; set; }
+
     public decimal UnitPrice => OverridePrice ?? Product.Price;
 
     public decimal LineSubtotal => UnitPrice * Quantity * QtyMultiplier;

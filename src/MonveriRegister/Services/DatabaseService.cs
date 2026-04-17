@@ -152,6 +152,24 @@ public class DatabaseService : IDatabaseService, IDisposable
         return (reader.GetString(0), reader.GetInt32(1));
     }
 
+    public void SaveBarcodeRelationships(IEnumerable<BarcodeRelationship> relationships)
+    {
+        var conn = GetConnection();
+        using var transaction = conn.BeginTransaction();
+        foreach (var rel in relationships)
+        {
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = @"INSERT OR REPLACE INTO barcode_relationships (id, scanned_barcode, parent_sku, qty_count)
+                VALUES (@id, @barcode, @sku, @qty)";
+            cmd.Parameters.AddWithValue("@id", rel.Id);
+            cmd.Parameters.AddWithValue("@barcode", rel.ScannedBarcode);
+            cmd.Parameters.AddWithValue("@sku", rel.ParentSku);
+            cmd.Parameters.AddWithValue("@qty", rel.QtyCount);
+            cmd.ExecuteNonQuery();
+        }
+        transaction.Commit();
+    }
+
     public Product? GetProductByPartialSku(string code)
     {
         using var cmd = GetConnection().CreateCommand();

@@ -17,6 +17,7 @@ public interface IDatabaseService
     Product? GetProductByUpc(string upc);
     Product? GetVariantBySkuOrUpc(string code);
     (string ParentSku, int QtyCount)? GetBarcodeRelationship(string barcode);
+    void SaveBarcodeRelationships(IEnumerable<BarcodeRelationship> relationships);
     Product? GetProductByPartialSku(string code);
     List<Product> SearchProducts(string query, int limit = 20);
 

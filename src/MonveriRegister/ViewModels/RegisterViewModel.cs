@@ -275,22 +275,24 @@ public partial class RegisterViewModel : ObservableObject
     {
         if (ActiveTransaction == null) return;
 
-        // Check if same SKU already in cart
-        var existing = CartItems.FirstOrDefault(ci => ci.Product.Sku == product.Sku && ci.OverridePrice == null);
-        if (existing != null)
+        var existing = CartItems.FirstOrDefault(ci =>
+            ci.Product.Sku == product.Sku &&
+            ci.OverridePrice == null &&
+            ci.QtyMultiplier == product.QtyMultiplier);
+        if (existing?.TransactionItem != null)
         {
             existing.Quantity += 1;
-            _transactionService.UpdateItemQuantity(ActiveTransaction,
-                ActiveTransaction.Items.First(i => i.Sku == product.Sku && i.OverridePrice == null), existing.Quantity);
+            _transactionService.UpdateItemQuantity(ActiveTransaction, existing.TransactionItem, existing.Quantity);
         }
         else
         {
-            var item = _transactionService.AddItem(ActiveTransaction, product);
+            var txnItem = _transactionService.AddItem(ActiveTransaction, product);
             CartItems.Add(new CartItem
             {
                 Product = product,
                 Quantity = 1,
                 QtyMultiplier = product.QtyMultiplier,
+                TransactionItem = txnItem,
             });
         }
 
@@ -305,10 +307,9 @@ public partial class RegisterViewModel : ObservableObject
     [RelayCommand]
     private void IncreaseQuantity(CartItem cartItem)
     {
-        if (ActiveTransaction == null) return;
+        if (ActiveTransaction == null || cartItem.TransactionItem == null) return;
         cartItem.Quantity++;
-        var txnItem = ActiveTransaction.Items.FirstOrDefault(i => i.Sku == cartItem.Sku);
-        if (txnItem != null) _transactionService.UpdateItemQuantity(ActiveTransaction, txnItem, cartItem.Quantity);
+        _transactionService.UpdateItemQuantity(ActiveTransaction, cartItem.TransactionItem, cartItem.Quantity);
         RecalculateTotals();
     }
 
@@ -321,9 +322,9 @@ public partial class RegisterViewModel : ObservableObject
             RemoveCartItem(cartItem);
             return;
         }
+        if (cartItem.TransactionItem == null) return;
         cartItem.Quantity--;
-        var txnItem = ActiveTransaction.Items.FirstOrDefault(i => i.Sku == cartItem.Sku);
-        if (txnItem != null) _transactionService.UpdateItemQuantity(ActiveTransaction, txnItem, cartItem.Quantity);
+        _transactionService.UpdateItemQuantity(ActiveTransaction, cartItem.TransactionItem, cartItem.Quantity);
         RecalculateTotals();
     }
 
@@ -331,8 +332,8 @@ public partial class RegisterViewModel : ObservableObject
     private void RemoveCartItem(CartItem cartItem)
     {
         if (ActiveTransaction == null) return;
-        var txnItem = ActiveTransaction.Items.FirstOrDefault(i => i.Sku == cartItem.Sku);
-        if (txnItem != null) _transactionService.RemoveItem(ActiveTransaction, txnItem);
+        if (cartItem.TransactionItem != null)
+            _transactionService.RemoveItem(ActiveTransaction, cartItem.TransactionItem);
         CartItems.Remove(cartItem);
         RecalculateTotals();
     }
@@ -480,6 +481,7 @@ public partial class RegisterViewModel : ObservableObject
                     Quantity = item.Qty,
                     OverridePrice = item.OverridePrice,
                     QtyMultiplier = item.QtyMultiplier,
+                    TransactionItem = item,
                 });
             }
         }

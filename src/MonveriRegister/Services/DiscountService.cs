@@ -99,7 +99,7 @@ public class DiscountService : IDiscountService
 
             if (savings > 0)
             {
-                savings = Math.Round(savings, 2);
+                savings = Math.Round(savings, 2, MidpointRounding.AwayFromZero);
                 info.Savings = savings;
 
                 bool isBuyGetType = discount.Type is "buy_x_get_free" or "buy_x_get_other_free";
@@ -148,27 +148,32 @@ public class DiscountService : IDiscountService
 
         if (discount.BxgyTargetMode == "product")
         {
-            // Buy X of same product, get Y free
-            foreach (var item in items)
-            {
-                if (item.Sku == discount.Sku)
-                {
-                    int totalQty = item.Qty * item.QtyMultiplier;
-                    int sets = totalQty / (buyQty + freeQty);
-                    int remainder = totalQty % (buyQty + freeQty);
-                    int freeItems = sets * freeQty;
-                    if (remainder > buyQty)
-                        freeItems += (remainder - buyQty);
+            var matchingItems = items.Where(i => i.Sku == discount.Sku).ToList();
+            int totalQty = matchingItems.Sum(i => i.Qty * i.QtyMultiplier);
 
-                    if (freeItems > 0)
-                    {
-                        decimal price = item.OverridePrice ?? item.Price;
-                        info.Description = $"Buy {buyQty} get {freeQty} free";
-                        info.FreeQty = freeItems;
-                        return freeItems * price;
-                    }
-                    break;
+            int sets = totalQty / (buyQty + freeQty);
+            int remainder = totalQty % (buyQty + freeQty);
+            int freeItems = sets * freeQty;
+            if (remainder > buyQty)
+                freeItems += (remainder - buyQty);
+
+            if (freeItems > 0)
+            {
+                decimal savings = 0;
+                int remaining = freeItems;
+                foreach (var item in matchingItems)
+                {
+                    if (remaining <= 0) break;
+                    decimal price = item.OverridePrice ?? item.Price;
+                    int lineEffective = item.Qty * item.QtyMultiplier;
+                    int fromLine = Math.Min(remaining, lineEffective);
+                    savings += fromLine * price;
+                    remaining -= fromLine;
                 }
+
+                info.Description = $"Buy {buyQty} get {freeQty} free";
+                info.FreeQty = freeItems;
+                return savings;
             }
         }
         else
@@ -235,21 +240,11 @@ public class DiscountService : IDiscountService
         int freeQty = discount.GetQuantity;
 
         if (string.IsNullOrEmpty(buySku) || string.IsNullOrEmpty(freeSku)) return 0;
+        if (buyQty <= 0 || freeQty <= 0) return 0;
 
-        int buyItemQty = 0;
-        decimal freeItemPrice = 0;
-        int freeItemQty = 0;
-
-        foreach (var item in items)
-        {
-            if (item.Sku == buySku)
-                buyItemQty = item.Qty * item.QtyMultiplier;
-            if (item.Sku == freeSku)
-            {
-                freeItemPrice = item.OverridePrice ?? item.Price;
-                freeItemQty = item.Qty * item.QtyMultiplier;
-            }
-        }
+        int buyItemQty = items.Where(i => i.Sku == buySku).Sum(i => i.Qty * i.QtyMultiplier);
+        var freeItems = items.Where(i => i.Sku == freeSku).ToList();
+        int freeItemQty = freeItems.Sum(i => i.Qty * i.QtyMultiplier);
 
         if (buyItemQty >= buyQty && freeItemQty > 0)
         {
@@ -259,9 +254,21 @@ public class DiscountService : IDiscountService
 
             if (actualFree > 0)
             {
+                decimal savings = 0;
+                int remaining = actualFree;
+                foreach (var item in freeItems)
+                {
+                    if (remaining <= 0) break;
+                    decimal price = item.OverridePrice ?? item.Price;
+                    int lineEffective = item.Qty * item.QtyMultiplier;
+                    int fromLine = Math.Min(remaining, lineEffective);
+                    savings += fromLine * price;
+                    remaining -= fromLine;
+                }
+
                 info.Description = $"Buy {buyQty} {buySku}, get {freeSku} free";
                 info.FreeQty = actualFree;
-                return actualFree * freeItemPrice;
+                return savings;
             }
         }
 
