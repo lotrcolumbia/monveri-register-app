@@ -159,6 +159,7 @@ public class DatabaseService : IDatabaseService, IDisposable
         foreach (var rel in relationships)
         {
             using var cmd = conn.CreateCommand();
+            cmd.Transaction = transaction;
             cmd.CommandText = @"INSERT OR REPLACE INTO barcode_relationships (id, scanned_barcode, parent_sku, qty_count)
                 VALUES (@id, @barcode, @sku, @qty)";
             cmd.Parameters.AddWithValue("@id", rel.Id);
